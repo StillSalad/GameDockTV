@@ -13,30 +13,26 @@ jobs:
       - name: Prepara il progetto
         id: prep
         run: |
-          if [ -f GameDockTV.zip ]; then
-            mkdir -p progetto && unzip -q -o GameDockTV.zip -d progetto
-            DIR=$(dirname "$(find progetto -name settings.gradle | head -1)")
-          elif [ -f settings.gradle ]; then
-            DIR=.
+          ZIP=$(find . -maxdepth 1 -iname "*.zip" | head -1)
+          if [ -n "$ZIP" ]; then
+            echo "Trovato: $ZIP"
+            mkdir -p progetto && unzip -q -o "$ZIP" -d progetto
           fi
-          if [ -z "$DIR" ] || [ "$DIR" = "." -a ! -f settings.gradle ]; then
-            echo "Manca GameDockTV.zip: caricalo con Add file > Upload files."
-            echo "dir=" >> "$GITHUB_OUTPUT"
-          else
-            echo "dir=$DIR" >> "$GITHUB_OUTPUT"
+          GRADLE=$(find . -name settings.gradle -not -path "*/build/*" | head -1)
+          if [ -z "$GRADLE" ]; then
+            echo "::error::Progetto non trovato. Carica GameDockTV.zip con Add file > Upload files."
+            exit 1
           fi
+          echo "dir=$(dirname "$GRADLE")" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-java@v4
-        if: steps.prep.outputs.dir != ''
         with:
           distribution: temurin
           java-version: '17'
 
       - uses: android-actions/setup-android@v3
-        if: steps.prep.outputs.dir != ''
 
       - name: Compila l'APK
-        if: steps.prep.outputs.dir != ''
         working-directory: ${{ steps.prep.outputs.dir }}
         run: |
           chmod +x gradlew
@@ -46,7 +42,6 @@ jobs:
           cp app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/out/GameDock-$VERSION.apk"
 
       - uses: actions/upload-artifact@v4
-        if: steps.prep.outputs.dir != ''
         with:
           name: GameDock-APK
           path: out/*.apk
