@@ -1,0 +1,52 @@
+name: Crea APK GameDock TV
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepara il progetto
+        id: prep
+        run: |
+          if [ -f GameDockTV.zip ]; then
+            mkdir -p progetto && unzip -q -o GameDockTV.zip -d progetto
+            DIR=$(dirname "$(find progetto -name settings.gradle | head -1)")
+          elif [ -f settings.gradle ]; then
+            DIR=.
+          fi
+          if [ -z "$DIR" ] || [ "$DIR" = "." -a ! -f settings.gradle ]; then
+            echo "Manca GameDockTV.zip: caricalo con Add file > Upload files."
+            echo "dir=" >> "$GITHUB_OUTPUT"
+          else
+            echo "dir=$DIR" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-java@v4
+        if: steps.prep.outputs.dir != ''
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+        if: steps.prep.outputs.dir != ''
+
+      - name: Compila l'APK
+        if: steps.prep.outputs.dir != ''
+        working-directory: ${{ steps.prep.outputs.dir }}
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+          VERSION=$(grep -oP "versionName '\K[^']+" app/build.gradle)
+          mkdir -p "$GITHUB_WORKSPACE/out"
+          cp app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/out/GameDock-$VERSION.apk"
+
+      - uses: actions/upload-artifact@v4
+        if: steps.prep.outputs.dir != ''
+        with:
+          name: GameDock-APK
+          path: out/*.apk
