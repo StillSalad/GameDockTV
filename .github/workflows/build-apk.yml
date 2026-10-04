@@ -13,12 +13,14 @@ jobs:
       - name: Prepara il progetto
         id: prep
         run: |
-          ZIP=$(find . -maxdepth 1 -iname "*.zip" | head -1)
+          echo "File nel repository:"
+          find . -type f -not -path "./.git/*" | head -40
+          ZIP=$(find . -iname "*.zip" -not -path "./.git/*" | head -1)
           if [ -n "$ZIP" ]; then
             echo "Trovato: $ZIP"
             mkdir -p progetto && unzip -q -o "$ZIP" -d progetto
           fi
-          GRADLE=$(find . -name settings.gradle -not -path "*/build/*" | head -1)
+          GRADLE=$(find . -name settings.gradle -not -path "*/build/*" -not -path "./.git/*" | head -1)
           if [ -z "$GRADLE" ]; then
             echo "::error::Progetto non trovato. Carica GameDockTV.zip con Add file > Upload files."
             exit 1
